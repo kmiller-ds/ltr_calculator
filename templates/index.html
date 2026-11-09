@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0877c9">
+  <title>LTR Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-name">LTR Calculator</span>
+    </a>
+  </header>
+
+  <main class="page-shell">
+    {% if errors %}
+      <div class="error-banner" role="alert">
+        <strong>We couldn’t complete the forecast.</strong>
+        {% for error in errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="workspace">
+      <aside class="controls-panel">
+        <div class="panel-heading">
+          <h2>Inputs</h2>
+        </div>
+
+        <form method="post" id="model-form">
+          <div class="field-group">
+            <label for="site">Publication</label>
+            <select id="site" name="site" required>
+              {% for site in options.sites %}
+                <option value="{{ site }}" {% if values.site == site %}selected{% endif %}>{{ site }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="offer">Offer Type</label>
+            <select id="offer" name="offer" required>
+              {% for offer in source_data.offersBySite.get(values.site, options.offers) %}
+                <option value="{{ offer }}" {% if values.offer == offer %}selected{% endif %}>{{ offer }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="intro_price">Intro price</label>
+            <div class="input-with-prefix"><span>$</span><input id="intro_price" name="intro_price" type="number" min="0" step="any" value="{{ values.intro_price }}" inputmode="decimal"></div>
+          </div>
+
+          <div class="section-rule"><span>ASSUMPTIONS</span></div>
+          <div class="field-grid">
+            <div class="field-group">
+              <label for="grace_days">Grace period <span class="unit">days</span></label>
+              <input id="grace_days" name="grace_days" type="number" min="0" step="1" value="{{ values.grace_days }}">
+            </div>
+            <div class="field-group">
+              <label for="pct_nonpay">Non-pay share<span class="unit">%</span></label>
+              <input id="pct_nonpay" name="pct_nonpay" type="number" min="0" step="any" value="{{ values.pct_nonpay }}">
+            </div>
+            <div class="field-group">
+              <label for="blended_step_up">Blended Step Up Rate <span class="unit">$</span></label>
+              <input id="blended_step_up" name="blended_step_up" type="number" min="0" step="any" value="{{ values.blended_step_up }}">
+            </div>
+            <div class="field-group">
+              <label for="step_override">Step Up Rate Override <span class="unit">$</span></label>
+              <input id="step_override" name="step_override" type="number" min="0" step="any" value="{{ values.step_override }}">
+            </div>
+            <div class="field-group">
+              <label for="monthly_churn">Monthly churn<span class="unit">%</span></label>
+              <input id="monthly_churn" name="monthly_churn" type="number" min="0" step="any" value="{{ values.monthly_churn }}">
+            </div>
+            <div class="field-group">
+              <label for="sales_lift">Sales lift<span class="unit">%</span></label>
+              <input id="sales_lift" name="sales_lift" type="number" min="0" step="any" value="{{ values.sales_lift }}">
+            </div>
+            <div class="field-group field-span">
+              <label for="cpa">Acquisition cost <span class="unit">optional, $</span></label>
+              <input id="cpa" name="cpa" type="number" min="0" step="any" value="{{ values.cpa }}">
+            </div>
+          </div>
+
+          <button class="run-button" type="submit"><span>Run forecast</span><span aria-hidden="true">→</span></button>
+          <a class="reset-link" href="{{ url_for('index', reset=1) }}">Reset</a>
+        </form>
+      </aside>
+
+      <section class="results-panel" aria-live="polite">
+          <div class="results-heading">
+            <h2>Projection{% if summary %} <span>{{ values.site }} / {{ values.offer }}</span>{% endif %}</h2>
+            {% if summary %}
+              <a class="download-button" href="{{ url_for('download') }}" title="Download the weekly forecast as CSV"><span aria-hidden="true">↓</span> CSV</a>
+            {% endif %}
+          </div>
+          <div class="metrics-row">
+            <article class="metric metric-primary"><span>Ending retention</span><strong>{% if summary %}{{ '%.1f%%'|format(summary.ending_retention * 100) }}{% else %}—{% endif %}</strong></article>
+            <article class="metric"><span>Cumulative net revenue</span><strong>{% if summary %}${{ '{:,.0f}'.format(summary.total_net_revenue) }}{% else %}—{% endif %}</strong></article>
+            <article class="metric"><span>Gross revenue</span><strong>{% if summary %}${{ '{:,.0f}'.format(summary.total_gross_revenue) }}{% else %}—{% endif %}</strong></article>
+          </div>
+
+          <div class="chart-grid">
+            <article class="chart-panel">{% if summary %}{{ plots.net|safe }}{% else %}<div class="chart-placeholder">Run forecast to see cumulative net revenue.</div>{% endif %}</article>
+            <article class="chart-panel">{% if summary %}{{ plots.retention|safe }}{% else %}<div class="chart-placeholder">Run forecast to see retention.</div>{% endif %}</article>
+            <article class="chart-panel">{% if summary %}{{ plots.units|safe }}{% else %}<div class="chart-placeholder">Run forecast to see units.</div>{% endif %}</article>
+          </div>
+
+          <div class="table-heading"><h3>Weekly results</h3></div>
+          {% if summary %}
+            <div class="table-wrap">
+            <table>
+              <thead><tr>{% for heading in rows[0].keys() %}<th>{{ heading }}</th>{% endfor %}</tr></thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>{% for value in row.values() %}<td>{% if value is number %}{{ '%.4f'|format(value) }}{% else %}{{ value }}{% endif %}</td>{% endfor %}</tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            </div>
+          {% else %}
+            <div class="table-placeholder">Run forecast to see the weekly results.</div>
+          {% endif %}
+      </section>
+    </div>
+  </main>
+
+  <script id="source-data" type="application/json">{{ source_data|tojson }}</script>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</body>
+</html>

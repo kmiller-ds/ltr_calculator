@@ -1,0 +1,19 @@
+[project]
+name = "ltr-dynamic-v2"
+version = "0.1.0"
+description = "Retention and lifetime revenue forecasting app"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Flask>=3.0,<4",
+    "google-cloud-storage>=2.0",
+    "numpy>=1.26",
+    "openpyxl>=3.1",
+    "pandas>=2.0",
+    "plotly>=5.0",
+    "pyxlsb",
+    "xlrd",
+]
+
+[tool.uv]
+package = false
