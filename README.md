@@ -32,7 +32,7 @@ Offer and site choices are derived from loaded rows. If an `Intro Price` column 
 
 ### User-provided source file format
 
-Choose a CSV or Excel file in the **Source file** field to upload and validate it immediately. The app checks the columns and values and shows an error if the file is invalid; validation does not run a forecast. After successful validation, select **Run forecast**. The file is limited to 16 MB and remains selected in the current app process for up to 30 minutes after its last use; it is not preserved across app restarts. Choose another file to replace it, or select **Reset** to return to the configured source.
+Choose a CSV or Excel file smaller than 16 MB in the **Source file** field to upload and validate it immediately. The app checks the columns and values and shows an error if the file is invalid; validation does not run a forecast. After successful validation, select **Run forecast**. The file remains selected in the current app process for up to 30 minutes after its last use; it is not preserved across app restarts. Choose another file to replace it, or select **Reset** to return to the configured source.
 
 The uploaded file should use this tabular format, with the column names exactly as shown:
 
