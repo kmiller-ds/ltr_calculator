@@ -40,20 +40,31 @@ def load_gcs_bytes(bucket_name: str, blob_name: str, project: str) -> bytes:
     return client.bucket(bucket_name).blob(blob_name).download_as_bytes()
 
 
-def read_source_bytes(data: bytes, blob_name: str, sheet_name: str) -> pd.DataFrame:
+def read_source_bytes(
+    data: bytes, blob_name: str, sheet_name: str | int, skiprows: int = 1
+) -> pd.DataFrame:
     stream = BytesIO(data)
     lower_name = blob_name.lower()
     if lower_name.endswith(".csv"):
         return pd.read_csv(stream)
     if lower_name.endswith(".xlsx"):
         return pd.read_excel(
-            stream, engine="openpyxl", sheet_name=sheet_name, skiprows=1
+            stream, engine="openpyxl", sheet_name=sheet_name, skiprows=skiprows
         )
     if lower_name.endswith(".xlsb"):
-        return pd.read_excel(stream, engine="pyxlsb", sheet_name=sheet_name, skiprows=1)
+        return pd.read_excel(
+            stream, engine="pyxlsb", sheet_name=sheet_name, skiprows=skiprows
+        )
     if lower_name.endswith(".xls"):
-        return pd.read_excel(stream, engine="xlrd", sheet_name=sheet_name, skiprows=1)
+        return pd.read_excel(
+            stream, engine="xlrd", sheet_name=sheet_name, skiprows=skiprows
+        )
     raise ValueError(f"Unsupported source file type: {blob_name}")
+
+
+def load_uploaded_source(data: bytes, filename: str) -> pd.DataFrame:
+    raw = read_source_bytes(data, filename, sheet_name=0, skiprows=0)
+    return normalize_source_data(raw)
 
 
 def normalize_source_data(raw: pd.DataFrame) -> pd.DataFrame:
@@ -298,7 +309,7 @@ def non_pay_adjustment(
 
 def run_model(config: dict[str, Any], source: pd.DataFrame) -> pd.DataFrame:
     values = {**MODEL_DEFAULTS, **config}
-
+    print(values)
     options = available_options(source)
     if values.get("offer") not in options["offers"]:
         raise ValueError(f"Unknown offer: {values.get('offer')}")

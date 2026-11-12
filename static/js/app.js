@@ -3,8 +3,21 @@
   const siteSelect = document.getElementById("site");
   const offerSelect = document.getElementById("offer");
   const introPrice = document.getElementById("intro_price");
+  const sourceForm = document.getElementById("model-form");
+  const sourceFile = document.getElementById("source_file");
 
   if (!payload || !siteSelect || !offerSelect || !introPrice) return;
+
+  sourceFile?.addEventListener("change", () => {
+    if (sourceFile.files.length > 0 && sourceForm) {
+      const action = document.createElement("input");
+      action.type = "hidden";
+      action.name = "action";
+      action.value = "upload_source";
+      sourceForm.append(action);
+      sourceForm.requestSubmit();
+    }
+  });
 
   let sourceData;
   try {

@@ -45,6 +45,9 @@ label { display: flex; justify-content: space-between; align-items: baseline; ga
 .unit { color: #8795a4; font-size: 10px; font-weight: 500; }
 input, select { width: 100%; min-height: 39px; padding: 8px 10px; color: var(--ink); border: 1px solid #cbd6e0; border-radius: 3px; background: #fff; outline: none; }
 input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgb(8 119 201 / 13%); }
+input[type="file"] { height: auto; padding: 6px; font-size: 11px; }
+input[type="file"]::file-selector-button { margin-right: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 3px; background: #f5f8fa; color: var(--ink); cursor: pointer; }
+.form-help { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; }
 select { appearance: none; padding-right: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%235f6f82' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
 .input-with-prefix { position: relative; }
 .input-with-prefix > span { position: absolute; z-index: 1; top: 8px; left: 11px; color: var(--muted); }
@@ -88,6 +91,8 @@ th:first-child, td:first-child, th:nth-child(2), td:nth-child(2), th:nth-child(3
 tbody tr:nth-child(even) { background: #fafcfd; }
 .error-banner { margin: 0 0 15px; padding: 12px 16px; border-left: 4px solid #c43f47; background: #fff2f2; color: #812b31; font-size: 12px; }
 .error-banner p { margin: 3px 0 0; }
+.success-banner { margin: 0 0 15px; padding: 12px 16px; border-left: 4px solid #21834a; background: #effaf2; color: #205b35; font-size: 12px; }
+.success-banner p { margin: 0; }
 
 @media (max-width: 980px) {
   .workspace { grid-template-columns: minmax(270px, 315px) minmax(0, 1fr); gap: 13px; }

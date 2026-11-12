@@ -20,8 +20,13 @@
   <main class="page-shell">
     {% if errors %}
       <div class="error-banner" role="alert">
-        <strong>We couldn’t complete the forecast.</strong>
+        <strong>{% if request.method == "POST" and request.form.get("action") == "upload_source" %}The source file could not be validated.{% else %}We couldn’t complete the forecast.{% endif %}</strong>
         {% for error in errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% if notices %}
+      <div class="success-banner" role="status">
+        {% for notice in notices %}<p>{{ notice }}</p>{% endfor %}
       </div>
     {% endif %}
 
@@ -31,7 +36,18 @@
           <h2>Inputs</h2>
         </div>
 
-        <form method="post" id="model-form">
+        <form method="post" id="model-form" enctype="multipart/form-data">
+          <div class="field-group">
+            <label for="source_file">Source file <span class="unit">CSV or Excel, max 16 MB</span></label>
+            <input id="source_file" name="source_file" type="file" accept=".csv,.xlsx,.xls,.xlsb">
+            <small class="form-help">
+              {% if session.get('uploaded_source_name') %}
+                Using {{ session.get('uploaded_source_name') }}. Choose another file to replace it, or reset to use the default source.
+              {% else %}
+                Leave blank to use the default source.
+              {% endif %}
+            </small>
+          </div>
           <div class="field-group">
             <label for="site">Publication</label>
             <select id="site" name="site" required>
@@ -85,7 +101,7 @@
             </div>
           </div>
 
-          <button class="run-button" type="submit"><span>Run forecast</span><span aria-hidden="true">→</span></button>
+          <button class="run-button" type="submit" name="action" value="run_forecast"><span>Run forecast</span><span aria-hidden="true">→</span></button>
           <a class="reset-link" href="{{ url_for('index', reset=1) }}">Reset</a>
         </form>
       </aside>
