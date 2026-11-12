@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 
 from io import BytesIO
@@ -9,7 +7,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from google.cloud import storage
-
 
 DATA_CONFIG = {
     "bucket_name": "clv_calculator_files",
@@ -49,7 +46,9 @@ def read_source_bytes(data: bytes, blob_name: str, sheet_name: str) -> pd.DataFr
     if lower_name.endswith(".csv"):
         return pd.read_csv(stream)
     if lower_name.endswith(".xlsx"):
-        return pd.read_excel(stream, engine="openpyxl", sheet_name=sheet_name, skiprows=1)
+        return pd.read_excel(
+            stream, engine="openpyxl", sheet_name=sheet_name, skiprows=1
+        )
     if lower_name.endswith(".xlsb"):
         return pd.read_excel(stream, engine="pyxlsb", sheet_name=sheet_name, skiprows=1)
     if lower_name.endswith(".xls"):
@@ -82,13 +81,23 @@ def normalize_source_data(raw: pd.DataFrame) -> pd.DataFrame:
     annual["Offer Length"] = 52
 
     normalized = pd.concat([monthly, annual], ignore_index=True)
-    normalized[DROP_COLUMNS] = -normalized[DROP_COLUMNS].apply(pd.to_numeric, errors="coerce")
+    normalized[DROP_COLUMNS] = -normalized[DROP_COLUMNS].apply(
+        pd.to_numeric, errors="coerce"
+    )
     normalized["Intro Price"] = normalized["Offer"].map(LEGACY_OFFER_PRICES)
 
-    missing_sites = ['Packers News', 'Hawk Central', 'Tucson']
-    missing_retention_data = pd.Series(missing_sites,name="CM Site Name").to_frame().merge( normalized[normalized["CM Site Name"]=="Total"].drop("CM Site Name",axis=1),how="cross")
-    normalized = pd.concat([normalized,missing_retention_data],axis=0)
-
+    missing_sites = ["Packers News", "Hawk Central", "Tucson"]
+    missing_retention_data = (
+        pd.Series(missing_sites, name="CM Site Name")
+        .to_frame()
+        .merge(
+            normalized[normalized["CM Site Name"] == "Total"].drop(
+                "CM Site Name", axis=1
+            ),
+            how="cross",
+        )
+    )
+    normalized = pd.concat([normalized, missing_retention_data], axis=0)
 
     return _validate_source(normalized)
 
@@ -96,9 +105,13 @@ def normalize_source_data(raw: pd.DataFrame) -> pd.DataFrame:
 def _validate_source(source: pd.DataFrame) -> pd.DataFrame:
     missing = REQUIRED_COLUMNS.difference(source.columns)
     if missing:
-        raise ValueError(f"Source data is missing required columns: {', '.join(sorted(missing))}")
+        raise ValueError(
+            f"Source data is missing required columns: {', '.join(sorted(missing))}"
+        )
     if "Intro Price" not in source.columns:
-        raise ValueError("Source data needs an Intro Price column or a supported legacy offer.")
+        raise ValueError(
+            "Source data needs an Intro Price column or a supported legacy offer."
+        )
 
     result = source.copy()
     result["CM Site Name"] = result["CM Site Name"].fillna("").astype(str).str.strip()
@@ -111,13 +124,17 @@ def _validate_source(source: pd.DataFrame) -> pd.DataFrame:
         result[column] = pd.to_numeric(result[column], errors="coerce")
     numeric_columns = [*DROP_COLUMNS, "Offer Length", "Intro Price"]
     if result[numeric_columns].isna().any().any():
-        raise ValueError("Source data has missing or non-numeric prices, offer lengths, or drop values.")
+        raise ValueError(
+            "Source data has missing or non-numeric prices, offer lengths, or drop values."
+        )
     return result
 
 
 def load_source(config: dict[str, str] | None = None) -> pd.DataFrame:
     settings = {**DATA_CONFIG, **(config or {})}
-    data = load_gcs_bytes(settings["bucket_name"], settings["blob_name"], settings["project"])
+    data = load_gcs_bytes(
+        settings["bucket_name"], settings["blob_name"], settings["project"]
+    )
     raw = read_source_bytes(data, settings["blob_name"], settings["sheet_name"])
     return normalize_source_data(raw)
 
@@ -125,10 +142,18 @@ def load_source(config: dict[str, str] | None = None) -> pd.DataFrame:
 def available_options(source: pd.DataFrame) -> dict[str, list[str]]:
     missing = REQUIRED_COLUMNS.difference(source.columns)
     if missing:
-        raise ValueError(f"Source data is missing required columns: {', '.join(sorted(missing))}")
+        raise ValueError(
+            f"Source data is missing required columns: {', '.join(sorted(missing))}"
+        )
     return {
         "offers": sorted(source["Offer"].dropna().astype(str).unique()),
-        "sites": ["Total"] +  sorted(source["CM Site Name"][source["CM Site Name"] != "Total"].dropna().astype(str).unique()),
+        "sites": ["Total"]
+        + sorted(
+            source["CM Site Name"][source["CM Site Name"] != "Total"]
+            .dropna()
+            .astype(str)
+            .unique()
+        ),
     }
 
 
@@ -159,14 +184,15 @@ def get_offer_params(
     adjustment = (24 - blended_step_up) * 0.25 / 100
     return {
         "offer_length": int(row["Offer Length"]),
-        "intro_price": float(intro_price if intro_price is not None else row["Intro Price"]),
+        "intro_price": float(
+            intro_price if intro_price is not None else row["Intro Price"]
+        ),
         "loss_map": {
             "Intro": 0.0,
             "Step Up": float(row["Drop 1"]) - adjustment,
             "Grace1": float(row["Drop 2"]) - adjustment,
             "Second Payment": float(row["Drop 3"]),
             "Grace2": float(row["Drop 4"]) - 2 * adjustment,
-           
             "Hold": 0.0,
         },
     }
@@ -174,7 +200,9 @@ def get_offer_params(
 
 def billing_flag(week: int, offer_length: int) -> str:
     interval = 52 if offer_length >= 52 else 4
-    is_billing = week == offer_length or (week > offer_length and (week - offer_length) % interval == 0)
+    is_billing = week == offer_length or (
+        week > offer_length and (week - offer_length) % interval == 0
+    )
     return "Billing" if is_billing else "Non"
 
 
@@ -182,15 +210,15 @@ def timeline_state(schedule: list[str], offer_length: int, grace_weeks: int) -> 
     billing_count = schedule.count("Billing")
     last = schedule[-1] if schedule else "Non"
     week = len(schedule)
-   
-     
+    grace_weeks_at = {
+        offer_length + grace_weeks,
+        offer_length + grace_weeks + 1,
+        2 * offer_length + grace_weeks,
+        2 * offer_length + grace_weeks + 1,
+    }
+
     if offer_length >= 52:
-        grace_weeks_at = {
-            offer_length + grace_weeks,
-            offer_length + grace_weeks + 1,
-            2 * offer_length + grace_weeks,
-            2 * offer_length + grace_weeks + 1,
-        }
+       
         if billing_count < 1:
             return "Intro"
         if billing_count == 1 and last == "Billing":
@@ -198,10 +226,10 @@ def timeline_state(schedule: list[str], offer_length: int, grace_weeks: int) -> 
         if billing_count in [1] and week in grace_weeks_at:
             return "Grace1"
         if billing_count in [2] and week in grace_weeks_at:
-            return "Grace2"        
+            return "Grace2"
         if billing_count == 2 and last == "Billing":
             return "Second Payment"
-        if week > offer_length + grace_weeks and billing_count >= 2:
+        if billing_count >= 2 and week > max(grace_weeks_at):
             return "Churn"
         return "Hold"
 
@@ -216,14 +244,18 @@ def timeline_state(schedule: list[str], offer_length: int, grace_weeks: int) -> 
     if billing_count == 3 and last == "Billing":
         return "Second Payment"
     if billing_count == 4 and (last == "Billing" or schedule[-2] == "Billing"):
-            return "Grace2"
-    if week > offer_length + grace_weeks and billing_count >= 2:
-                return "Churn"
+        return "Grace2"
+    if billing_count >= 4 and last in ["Non","Billing","Grace2"]:
+        return "Churn"
     return "Hold"
 
 
 def retention_delta(
-    timeline: str, billing: str, week: int, offer_length: int, loss_map: dict[str, float]
+    timeline: str,
+    billing: str,
+    week: int,
+    offer_length: int,
+    loss_map: dict[str, float],
 ) -> float:
     loss = loss_map[timeline]
     if timeline != "Churn":
@@ -266,7 +298,7 @@ def non_pay_adjustment(
 
 def run_model(config: dict[str, Any], source: pd.DataFrame) -> pd.DataFrame:
     values = {**MODEL_DEFAULTS, **config}
-    
+
     options = available_options(source)
     if values.get("offer") not in options["offers"]:
         raise ValueError(f"Unknown offer: {values.get('offer')}")
@@ -280,7 +312,7 @@ def run_model(config: dict[str, Any], source: pd.DataFrame) -> pd.DataFrame:
         float(values["blended_step_up"]),
         values.get("intro_price"),
     )
-    
+
     offer_length = params["offer_length"]
     intro_price = params["intro_price"]
     loss_map = {**params["loss_map"], "Churn": float(values["monthly_churn"])}
@@ -293,7 +325,9 @@ def run_model(config: dict[str, Any], source: pd.DataFrame) -> pd.DataFrame:
     for week in range(1, FORECAST_WEEKS + 1):
         billing = billing_flag(week, offer_length)
         schedule.append(billing)
-        timeline = timeline_state(schedule, offer_length, int(values["grace_days"]) // 7)
+        timeline = timeline_state(
+            schedule, offer_length, int(values["grace_days"]) // 7
+        )
         delta = retention_delta(timeline, billing, week, offer_length, loss_map)
         previous = retention_history[-1] if retention_history else None
         retention = compute_retention(previous, delta, timeline)
@@ -319,22 +353,28 @@ def run_model(config: dict[str, Any], source: pd.DataFrame) -> pd.DataFrame:
         )
         net = gross - contra
         cpa_adjustment = -float(values["cpa"]) if values.get("cpa") else 0.0
-        total = net + cpa_adjustment if week == 1 else total_revenue_history[-1] + net + cpa_adjustment
+        total = (
+            net + cpa_adjustment
+            if week == 1
+            else total_revenue_history[-1] + net + cpa_adjustment
+        )
         total_revenue_history.append(total)
 
-        rows.append({
-            "Site": values["site"],
-            "Year": (week - 1) // 52 + 1,
-            "Week": f"Week {(week - 1) % 52 + 1:02d}",
-            "timeline": timeline,
-            "Billing Flag": billing,
-            "Retention": retention,
-            "Units": units,
-            "Weekly Rate": rate,
-            "Gross Incremental Revenue": gross,
-            "Non Pay Contra": contra,
-            "Net Incremental Revenue": net,
-            "CPA": values.get("cpa"),
-            "Total Net Revenue": total,
-        })
+        rows.append(
+            {
+                "Site": values["site"],
+                "Year": (week - 1) // 52 + 1,
+                "Week": f"Week {(week - 1) % 52 + 1:02d}",
+                "timeline": timeline,
+                "Billing Flag": billing,
+                "Retention": retention,
+                "Units": units,
+                "Weekly Rate": rate,
+                "Gross Incremental Revenue": gross,
+                "Non Pay Contra": contra,
+                "Net Incremental Revenue": net,
+                "CPA": values.get("cpa"),
+                "Total Net Revenue": total,
+            }
+        )
     return pd.DataFrame(rows)
