@@ -156,15 +156,13 @@ def available_options(source: pd.DataFrame) -> dict[str, list[str]]:
         raise ValueError(
             f"Source data is missing required columns: {', '.join(sorted(missing))}"
         )
+    source_sites = source["CM Site Name"].dropna().astype(str).unique()
+    sites = sorted(site for site in source_sites if site != "Total")
+    if "Total" in source_sites:
+        sites.insert(0, "Total")
     return {
         "offers": sorted(source["Offer"].dropna().astype(str).unique()),
-        "sites": ["Total"]
-        + sorted(
-            source["CM Site Name"][source["CM Site Name"] != "Total"]
-            .dropna()
-            .astype(str)
-            .unique()
-        ),
+        "sites": sites,
     }
 
 

@@ -6,6 +6,7 @@ import pandas as pd
 from app import create_app
 from model import (
     MODEL_DEFAULTS,
+    available_options,
     load_uploaded_source,
     normalize_source_data,
     offer_price_map,
@@ -58,6 +59,15 @@ class SourceDataTests(unittest.TestCase):
 
         self.assertEqual(source.iloc[0]["CM Site Name"], "Uploaded Site")
         self.assertEqual(source.iloc[0]["Intro Price"], 3.25)
+        self.assertEqual(available_options(source)["sites"], ["Uploaded Site"])
+
+    def test_total_is_available_only_when_source_contains_total_row(self):
+        source = pd.concat([
+            prepared_source(),
+            prepared_source().assign(**{"CM Site Name": "Total"}),
+        ], ignore_index=True)
+
+        self.assertEqual(available_options(source)["sites"], ["Total", "Example Site"])
 
     def test_uploaded_excel_uses_first_row_as_headers(self):
         excel = BytesIO()
@@ -112,6 +122,7 @@ class ForecastTests(unittest.TestCase):
         self.assertEqual(upload_response.status_code, 200)
         self.assertIn(b"source.csv uploaded and validated.", upload_response.data)
         self.assertIn(b"Using source.csv", upload_response.data)
+        self.assertNotIn(b'<option value="Total"', upload_response.data)
         self.assertIn(b"Run forecast to see retention.", upload_response.data)
         self.assertNotIn(b'href="/download"', upload_response.data)
 
